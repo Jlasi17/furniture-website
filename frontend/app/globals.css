@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --rosewood-primary: #3E2723;
+  --rosewood-secondary: #5D4037;
+  --rosewood-accent: #D4AF37;
+  --rosewood-bg: #FAF8F5;
+  --rosewood-surface: #FFFFFF;
+  --rosewood-text: #2D2D2D;
+  --rosewood-muted: #6B6B6B;
+}
+
+body {
+  background-color: #FAF8F5;
+  color: #2D2D2D;
+  font-family: 'Inter', Helvetica, Arial, sans-serif;
+}
