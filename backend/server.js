@@ -5,13 +5,26 @@ const mongoose = require('mongoose');
 const path = require('path');
 
 // Load env vars
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') }); // dev
+dotenv.config(); // fallback for cloud (env vars injected by platform)
 
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: (origin, callback) => {
+        // allow requests with no origin (e.g. curl, Postman)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }));
 app.use(express.json());
