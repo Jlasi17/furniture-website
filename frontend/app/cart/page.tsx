@@ -3,6 +3,7 @@
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import BackButton from '@/components/BackButton';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -27,6 +28,7 @@ export default function CartPage() {
 
     return (
         <div className="max-w-5xl mx-auto px-4 py-12">
+            <BackButton />
             <h1 className="text-3xl font-serif text-rosewood-primary mb-8">Your Cart ({totalItems} items)</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -39,32 +41,34 @@ export default function CartPage() {
 
                         return (
                             <div key={item._id} className="flex gap-4 bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                <div className="w-24 h-24 rounded overflow-hidden flex-shrink-0 bg-gray-100">
-                                    <img src={imgSrc} alt={item.name} className="w-full h-full object-cover" />
-                                </div>
-
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-rosewood-text truncate">{item.name}</h3>
-                                    <p className="text-rosewood-accent font-bold mt-1">${item.price.toFixed(2)}</p>
-
-                                    {/* Quantity Controls */}
-                                    <div className="flex items-center gap-2 mt-3">
-                                        <button
-                                            onClick={() => item.quantity > 1 ? updateQuantity(item._id, item.quantity - 1) : removeFromCart(item._id)}
-                                            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            <Minus size={14} />
-                                        </button>
-                                        <span className="w-8 text-center font-medium">{item.quantity}</span>
-                                        <button
-                                            onClick={() => item.quantity < item.countInStock && updateQuantity(item._id, item.quantity + 1)}
-                                            disabled={item.quantity >= item.countInStock}
-                                            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-40"
-                                        >
-                                            <Plus size={14} />
-                                        </button>
+                                <Link href={`/product/${item._id}`} className="flex gap-4 flex-1 min-w-0 group">
+                                    <div className="w-24 h-24 rounded overflow-hidden flex-shrink-0 bg-gray-100">
+                                        <img src={imgSrc} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     </div>
-                                </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-rosewood-text truncate group-hover:text-rosewood-accent transition-colors">{item.name}</h3>
+                                        <p className="text-rosewood-accent font-bold mt-1">₹{item.price.toFixed(2)}</p>
+
+                                        {/* Quantity Controls */}
+                                        <div className="flex items-center gap-2 mt-3" onClick={(e) => e.preventDefault()}>
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); item.quantity > 1 ? updateQuantity(item._id, item.quantity - 1) : removeFromCart(item._id); }}
+                                                className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                                            >
+                                                <Minus size={14} />
+                                            </button>
+                                            <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); item.quantity < item.countInStock && updateQuantity(item._id, item.quantity + 1); }}
+                                                disabled={item.quantity >= item.countInStock}
+                                                className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-40"
+                                            >
+                                                <Plus size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </Link>
 
                                 <div className="flex flex-col items-end justify-between">
                                     <button
@@ -73,7 +77,7 @@ export default function CartPage() {
                                     >
                                         <Trash2 size={18} />
                                     </button>
-                                    <p className="font-bold text-rosewood-primary">${(item.price * item.quantity).toFixed(2)}</p>
+                                    <p className="font-bold text-rosewood-primary">₹{(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
                             </div>
                         );
@@ -95,7 +99,7 @@ export default function CartPage() {
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between text-rosewood-text">
                                 <span>Subtotal ({totalItems} items)</span>
-                                <span>${totalPrice.toFixed(2)}</span>
+                                <span>₹{totalPrice.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-rosewood-text">
                                 <span>Shipping</span>
@@ -103,7 +107,7 @@ export default function CartPage() {
                             </div>
                             <div className="border-t pt-3 flex justify-between font-bold text-rosewood-primary text-base">
                                 <span>Total</span>
-                                <span>${totalPrice.toFixed(2)}</span>
+                                <span>₹{totalPrice.toFixed(2)}</span>
                             </div>
                         </div>
 

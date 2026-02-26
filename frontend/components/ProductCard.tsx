@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useCart } from '@/context/CartContext';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, CheckCircle2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -11,8 +11,8 @@ interface ProductProps {
     product: {
         _id: string;
         name: string;
-        images?: string[];   // array from API
-        image?: string;      // fallback singular
+        images?: string[];
+        image?: string;
         price: number;
         category: string;
         inStock: boolean;
@@ -21,7 +21,9 @@ interface ProductProps {
 }
 
 const ProductCard = ({ product }: ProductProps) => {
-    const { addToCart } = useCart();
+    const { addToCart, cartItems } = useCart();
+
+    const inCart = cartItems.some((x) => x._id === product._id);
 
     // Support both `images[]` (API) and `image` (legacy)
     const rawImage =
@@ -34,7 +36,7 @@ const ProductCard = ({ product }: ProductProps) => {
         : rawImage ? `${API_URL}${rawImage}` : '';
 
     const handleAddToCart = (e: React.MouseEvent) => {
-        e.preventDefault(); // prevent nav to product page
+        e.preventDefault();
         addToCart({
             _id: product._id,
             name: product.name,
@@ -66,19 +68,27 @@ const ProductCard = ({ product }: ProductProps) => {
                             Out of Stock
                         </div>
                     )}
+                    {inCart && (
+                        <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                            <CheckCircle2 size={12} /> In Cart
+                        </div>
+                    )}
                 </div>
                 <div className="p-4">
                     <p className="text-xs text-rosewood-muted uppercase tracking-wider mb-1">{product.category}</p>
                     <h3 className="text-lg font-medium text-rosewood-primary truncate">{product.name}</h3>
                     <div className="flex items-center justify-between mt-2">
-                        <p className="text-rosewood-accent font-semibold">${product.price}</p>
+                        <p className="text-rosewood-accent font-semibold">₹{product.price}</p>
                         <button
                             onClick={handleAddToCart}
                             disabled={!product.inStock}
-                            className="p-2 rounded-full bg-rosewood-primary text-white hover:bg-rosewood-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Add to Cart"
+                            title={inCart ? 'Add more to cart' : 'Add to cart'}
+                            className={`p-2 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${inCart
+                                ? 'bg-green-500 text-white hover:bg-green-600'
+                                : 'bg-rosewood-primary text-white hover:bg-rosewood-secondary'
+                                }`}
                         >
-                            <ShoppingCart size={16} />
+                            {inCart ? <CheckCircle2 size={16} /> : <ShoppingCart size={16} />}
                         </button>
                     </div>
                 </div>

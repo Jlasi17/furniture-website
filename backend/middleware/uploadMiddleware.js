@@ -1,9 +1,17 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads directory exists (relative to where server.js runs, i.e. backend/)
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
     destination(req, file, cb) {
-        cb(null, 'backend/uploads/');
+        // Path relative to the backend/ folder where server runs
+        cb(null, path.join(__dirname, '../uploads'));
     },
     filename(req, file, cb) {
         cb(
@@ -21,7 +29,7 @@ const checkFileType = (file, cb) => {
     if (extname && mimetype) {
         return cb(null, true);
     } else {
-        cb('Images only!');
+        cb(new Error('Images only! (jpg, jpeg, png, webp)'));
     }
 };
 
@@ -30,6 +38,7 @@ const upload = multer({
     fileFilter: function (req, file, cb) {
         checkFileType(file, cb);
     },
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max per file
 });
 
 module.exports = upload;

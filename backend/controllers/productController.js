@@ -41,35 +41,41 @@ const getProductById = async (req, res) => {
 // @route   POST /api/products
 // @access  Private/Admin
 const createProduct = async (req, res) => {
-    const {
-        name,
-        price,
-        description,
-        images,
-        category,
-        countInStock,
-        material,
-        color,
-        size
-    } = req.body;
+    try {
+        const {
+            name,
+            price,
+            description,
+            images,
+            category,
+            countInStock,
+            material,
+            color,
+            size
+        } = req.body;
 
-    const product = new Product({
-        name,
-        price,
-        user: req.user._id,
-        images: images || [], // Expect array of strings
-        category,
-        countInStock,
-        numReviews: 0,
-        description,
-        material,
-        color,
-        size: size || { length: 0, width: 0, height: 0 }
-    });
+        const product = new Product({
+            name,
+            price,
+            description,
+            images: images || [],
+            category,
+            countInStock: countInStock || 0,
+            inStock: countInStock > 0,   // derive inStock from countInStock
+            material: material || '',
+            color: color || '',
+            size: size || { length: 0, width: 0, height: 0 },
+            featured: false,
+        });
 
-    const createdProduct = await product.save();
-    res.status(201).json(createdProduct);
+        const createdProduct = await product.save();
+        res.status(201).json(createdProduct);
+    } catch (error) {
+        console.error('Create product error:', error.message);
+        res.status(500).json({ message: error.message });
+    }
 };
+
 
 // @desc    Delete a product
 // @route   DELETE /api/products/:id
@@ -98,6 +104,7 @@ const updateProduct = async (req, res) => {
         color,
         size,
         images,
+        countInStock,
         inStock,
         featured
     } = req.body;
@@ -105,16 +112,20 @@ const updateProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (product) {
-        product.name = name || product.name;
-        product.description = description || product.description;
-        product.price = price || product.price;
-        product.category = category || product.category;
-        product.material = material || product.material;
-        product.color = color || product.color;
-        product.size = size || product.size;
-        product.images = images || product.images;
-        product.inStock = inStock ?? product.inStock;
-        product.featured = featured ?? product.featured;
+        if (name !== undefined) product.name = name;
+        if (description !== undefined) product.description = description;
+        if (price !== undefined) product.price = price;
+        if (category !== undefined) product.category = category;
+        if (material !== undefined) product.material = material;
+        if (color !== undefined) product.color = color;
+        if (size !== undefined) product.size = size;
+        if (images !== undefined) product.images = images;
+        if (countInStock !== undefined) {
+            product.countInStock = countInStock;
+            product.inStock = countInStock > 0;   // keep inStock in sync
+        }
+        if (inStock !== undefined) product.inStock = inStock;
+        if (featured !== undefined) product.featured = featured;
 
         const updatedProduct = await product.save();
         res.json(updatedProduct);

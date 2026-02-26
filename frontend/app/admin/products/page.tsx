@@ -8,11 +8,11 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 export default function AdminProductsPage() {
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [togglingId, setTogglingId] = useState<string | null>(null);
 
     const fetchProducts = async () => {
         try {
             const { data } = await api.get('/api/products?pageNumber=1');
-            // Ideally fetch all or handle pagination.
             setProducts(data.products);
             setLoading(false);
         } catch (error) {
@@ -29,7 +29,7 @@ export default function AdminProductsPage() {
         if (window.confirm('Are you sure you want to delete this product?')) {
             try {
                 await api.delete(`/api/products/${id}`);
-                fetchProducts(); // Refresh
+                fetchProducts();
             } catch (error) {
                 console.error(error);
                 alert('Failed to delete product');
@@ -37,10 +37,20 @@ export default function AdminProductsPage() {
         }
     };
 
-    const createHandler = async () => {
-        // Optional: Standard pattern is to create empty then edit, 
-        // OR just redirect to /new and handle POST there.
-        // I'll redirect to /new.
+    const toggleStockHandler = async (product: any) => {
+        setTogglingId(product._id);
+        try {
+            await api.put(`/api/products/${product._id}`, { inStock: !product.inStock });
+            // Optimistically update in place instead of full refetch
+            setProducts((prev) =>
+                prev.map((p) => p._id === product._id ? { ...p, inStock: !p.inStock } : p)
+            );
+        } catch (error) {
+            console.error(error);
+            alert('Failed to update stock status');
+        } finally {
+            setTogglingId(null);
+        }
     };
 
     return (
@@ -68,35 +78,56 @@ export default function AdminProductsPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {products.map((product) => (
-                                <tr key={product._id}>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="h-10 w-10 rounded overflow-hidden bg-gray-100">
-                                            <img
-                                                src={product.image?.startsWith('http') ? product.image : `${process.env.NEXT_PUBLIC_API_URL}${product.image}`}
-                                                alt=""
-                                                className="h-full w-full object-cover"
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {product.inStock ? 'In Stock' : 'Out of Stock'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button className="text-indigo-600 hover:text-indigo-900 mr-4" title="Edit (Coming Soon)">
-                                            <Edit size={18} />
-                                        </button>
-                                        <button onClick={() => deleteHandler(product._id)} className="text-red-600 hover:text-red-900" title="Delete">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {products.map((product) => {
+                                const firstImage = product.images?.[0];
+                                const imgSrc = firstImage
+                                    ? firstImage.startsWith('http')
+                                        ? firstImage
+                                        : `${process.env.NEXT_PUBLIC_API_URL}${firstImage}`
+                                    : null;
+
+                                return (
+                                    <tr key={product._id}>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="h-10 w-10 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
+                                                {imgSrc ? (
+                                                    <img src={imgSrc} alt={product.name} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-gray-300 text-xs">No img</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹{product.price}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <button
+                                                onClick={() => toggleStockHandler(product)}
+                                                disabled={togglingId === product._id}
+                                                title="Click to toggle stock status"
+                                                className={`px-2 py-0.5 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full transition-opacity cursor-pointer hover:opacity-80 disabled:opacity-50 ${product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                                            >
+                                                {togglingId === product._id ? (
+                                                    <span className="inline-block h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                ) : null}
+                                                {product.inStock ? 'In Stock' : 'Out of Stock'}
+                                            </button>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <Link
+                                                href={`/admin/products/${product._id}/edit`}
+                                                className="text-indigo-600 hover:text-indigo-900 mr-4 inline-flex items-center"
+                                                title="Edit"
+                                            >
+                                                <Edit size={18} />
+                                            </Link>
+                                            <button onClick={() => deleteHandler(product._id)} className="text-red-600 hover:text-red-900" title="Delete">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

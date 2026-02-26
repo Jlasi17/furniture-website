@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ShoppingCart, Plus, Minus } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
+import BackButton from '@/components/BackButton';
 
 interface ProductDetail {
     _id: string;
@@ -23,13 +24,12 @@ interface ProductDetail {
 
 export default function ProductDetailPage() {
     const { id } = useParams();
-    const { addToCart } = useCart();
+    const { addToCart, removeFromCart, cartItems } = useCart();
     const router = useRouter();
     const [product, setProduct] = useState<ProductDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState('');
     const [qty, setQty] = useState(1);
-    const [added, setAdded] = useState(false);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -60,6 +60,7 @@ export default function ProductDetailPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-12">
+            <BackButton />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 {/* Image Gallery */}
                 <div>
@@ -90,7 +91,7 @@ export default function ProductDetailPage() {
                 <div>
                     <span className="text-sm text-rosewood-accent font-semibold tracking-wider uppercase">{product.category}</span>
                     <h1 className="text-4xl font-serif text-rosewood-primary mt-2 mb-4">{product.name}</h1>
-                    <p className="text-3xl font-medium text-rosewood-secondary mb-6">${product.price}</p>
+                    <p className="text-3xl font-medium text-rosewood-secondary mb-6">₹{product.price}</p>
 
                     <p className="text-gray-600 mb-8 leading-relaxed">
                         {product.description}
@@ -138,29 +139,42 @@ export default function ProductDetailPage() {
                         </div>
                     </div>
 
-                    <button
-                        className={`w-full md:w-auto px-8 py-4 rounded font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${added
-                            ? 'bg-green-600 text-white'
-                            : 'bg-rosewood-primary text-white hover:bg-rosewood-secondary'
-                            }`}
-                        disabled={!product.inStock}
-                        onClick={() => {
-                            if (!product.inStock) return;
-                            addToCart({
-                                _id: product._id,
-                                name: product.name,
-                                image: product.images?.[0] ?? '',
-                                price: product.price,
-                                quantity: qty,
-                                countInStock: product.countInStock ?? 99,
-                            });
-                            setAdded(true);
-                            setTimeout(() => setAdded(false), 2000);
-                        }}
-                    >
-                        <ShoppingCart size={20} />
-                        {!product.inStock ? 'Out of Stock' : added ? 'Added to Cart ✓' : 'Add to Cart'}
-                    </button>
+                    <div className="flex flex-wrap gap-3 mt-4">
+                        <button
+                            className={`px-8 py-4 rounded font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${cartItems.some((x) => x._id === product._id)
+                                ? 'bg-green-600 text-white'
+                                : 'bg-rosewood-primary text-white hover:bg-rosewood-secondary'
+                                }`}
+                            disabled={!product.inStock}
+                            onClick={() => {
+                                if (!product.inStock) return;
+                                addToCart({
+                                    _id: product._id,
+                                    name: product.name,
+                                    image: product.images?.[0] ?? '',
+                                    price: product.price,
+                                    quantity: qty,
+                                    countInStock: product.countInStock ?? 99,
+                                });
+                            }}
+                        >
+                            <ShoppingCart size={20} />
+                            {!product.inStock
+                                ? 'Out of Stock'
+                                : cartItems.some((x) => x._id === product._id)
+                                    ? 'In Cart ✓'
+                                    : 'Add to Cart'}
+                        </button>
+
+                        {cartItems.some((x) => x._id === product._id) && (
+                            <button
+                                onClick={() => removeFromCart(product._id)}
+                                className="px-6 py-4 rounded font-semibold border border-red-300 text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 size={18} /> Remove from Cart
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

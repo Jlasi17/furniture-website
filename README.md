@@ -111,13 +111,6 @@ Frontend runs on **http://localhost:3000**
 
 ---
 
-## 🔑 Default Credentials (after seeding)
-
-| Role | Email | Password |
-|---|---|---|
-| **Admin** | `admin@rosewood.com` | `password123` |
-| **Customer** | `john@example.com` | `password123` |
-
 Admin → redirected to `/admin/dashboard`  
 Customer → redirected to `/` (home)
 
