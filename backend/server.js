@@ -88,4 +88,12 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+// Vercel sets NODE_ENV to production automatically.
+// Only listen on a port if we're running locally.
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+}
+
+// Export the app for Vercel Serverless Functions
+module.exports = app;
