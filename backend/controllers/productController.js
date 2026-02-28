@@ -80,10 +80,28 @@ const createProduct = async (req, res) => {
 // @desc    Delete a product
 // @route   DELETE /api/products/:id
 // @access  Private/Admin
+const cloudinary = require('cloudinary').v2;
+
 const deleteProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (product) {
+        // Delete associated Cloudinary images if any
+        if (product.images && product.images.length > 0) {
+            // images are stored as full URLs; extract public_id from each URL
+            const deletePromises = product.images.map((url) => {
+                try {
+                    const parts = url.split('/');
+                    const filename = parts[parts.length - 1]; // e.g. image.jpg
+                    const publicId = filename.split('.')[0]; // remove extension
+                    return cloudinary.uploader.destroy(publicId);
+                } catch (e) {
+                    console.error('Failed to parse Cloudinary URL:', url, e);
+                    return Promise.resolve();
+                }
+            });
+            await Promise.all(deletePromises);
+        }
         await product.deleteOne();
         res.json({ message: 'Product removed' });
     } else {

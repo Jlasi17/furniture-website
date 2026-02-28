@@ -18,6 +18,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'JP Homes',
   description: 'Premium furniture for modern living',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${playfair.variable} ${inter.variable} antialiased min-h-screen flex flex-col font-sans`}>
+      <body suppressHydrationWarning className={`${playfair.variable} ${inter.variable} antialiased min-h-screen flex flex-col font-sans`}>
         <AuthProvider>
           <CartProvider>
             <ConditionalLayout>

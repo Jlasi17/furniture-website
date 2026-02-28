@@ -1,62 +1,85 @@
 'use client';
 
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import {
+    createContext, useContext, useState,
+    useEffect, ReactNode, useCallback,
+} from 'react';
 import { useRouter } from 'next/navigation';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { auth, signOut } from '@/lib/firebase';
 import api from '@/lib/api';
 
-interface User {
-    _id: string;
-    name: string;
-    email: string;
+interface AppUser {
+    uid: string;
+    name: string | null;
+    email: string | null;
     isAdmin: boolean;
-    token: string;
+    photoURL?: string | null;
 }
 
 interface AuthContextType {
-    user: User | null;
+    user: AppUser | null;
     loading: boolean;
-    login: (userData: User) => void;
-    logout: () => void;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        const storedUser = localStorage.getItem('userInfo');
-        if (storedUser) {
-            try {
-                setUser(JSON.parse(storedUser));
-            } catch (e) {
-                console.error("Failed to parse user info", e);
-                localStorage.removeItem('userInfo');
-            }
+    const syncWithBackend = useCallback(async (firebaseUser: FirebaseUser) => {
+        try {
+            // Get fresh ID token and sync with our backend to get isAdmin flag
+            const idToken = await firebaseUser.getIdToken();
+            const { data } = await api.post('/api/auth/sync', {
+                name: firebaseUser.displayName,
+                email: firebaseUser.email,
+            }, {
+                headers: { Authorization: `Bearer ${idToken}` },
+            });
+            setUser({
+                uid: firebaseUser.uid,
+                name: data.name || firebaseUser.displayName,
+                email: firebaseUser.email,
+                isAdmin: data.isAdmin ?? false,
+                photoURL: firebaseUser.photoURL,
+            });
+        } catch (err) {
+            console.error('Backend sync failed:', err);
+            // Still set basic user info even if backend sync fails
+            setUser({
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName,
+                email: firebaseUser.email,
+                isAdmin: false,
+                photoURL: firebaseUser.photoURL,
+            });
         }
-        setLoading(false);
     }, []);
 
-    const login = (userData: User) => {
-        setUser(userData);
-        localStorage.setItem('userInfo', JSON.stringify(userData));
-        if (userData.isAdmin) {
-            router.push('/admin/dashboard');
-        } else {
-            router.push('/');
-        }
-    };
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                await syncWithBackend(firebaseUser);
+            } else {
+                setUser(null);
+            }
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, [syncWithBackend]);
 
-    const logout = () => {
+    const logout = async () => {
+        await signOut(auth);
         setUser(null);
-        localStorage.removeItem('userInfo');
         router.push('/login');
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout }}>
+        <AuthContext.Provider value={{ user, loading, logout }}>
             {children}
         </AuthContext.Provider>
     );
@@ -64,8 +87,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
+    if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
     return context;
 };

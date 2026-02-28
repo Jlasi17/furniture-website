@@ -1,97 +1,45 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d',
-    });
-};
-
-// @desc    Auth user & get token
-// @route   POST /api/auth/login
-// @access  Public
-const authUser = async (req, res) => {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-
-    if (user && (await user.matchPassword(password))) {
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            isAdmin: user.isAdmin,
-            token: generateToken(user._id),
-        });
-    } else {
-        res.status(401).json({ message: 'Invalid email or password' });
-    }
-};
-
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
-const registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
-
-    const userExists = await User.findOne({ email });
-
-    if (userExists) {
-        res.status(400).json({ message: 'User already exists' });
-        return;
-    }
-
-    const user = await User.create({
-        name,
-        email,
-        password,
-        isAdmin: false, // Default to false, can manually set to true in DB for owner
-    });
-
-    if (user) {
-        res.status(201).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            isAdmin: user.isAdmin,
-            token: generateToken(user._id),
-        });
-    } else {
-        res.status(400).json({ message: 'Invalid user data' });
-    }
-};
-
-// @desc    Update user profile (name / password)
-// @route   PUT /api/auth/profile
-// @access  Private
-const updateUserProfile = async (req, res) => {
+// @desc  Sync a Firebase-authenticated user with our MongoDB
+// @route POST /api/auth/sync
+// @access Private (requires valid Firebase ID token via protect middleware)
+const syncUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const { uid, email, name: fbName } = req.firebaseUser;
+        const { name } = req.body; // optional display name from frontend
+
+        let user = await User.findOne({ firebaseUid: uid });
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            // Try to find by email (existing users before Firebase migration)
+            user = await User.findOne({ email });
         }
 
-        if (req.body.name) user.name = req.body.name;
-        if (req.body.password) {
-            const salt = await bcrypt.genSalt(10);
-            user.password = await bcrypt.hash(req.body.password, salt);
+        if (user) {
+            // Update name/firebaseUid if missing
+            if (!user.firebaseUid) user.firebaseUid = uid;
+            if (name && !user.name) user.name = name;
+            await user.save();
+        } else {
+            // Brand new user — create in MongoDB
+            user = await User.create({
+                firebaseUid: uid,
+                name: name || fbName || email?.split('@')[0] || 'User',
+                email,
+                isAdmin: false,
+            });
         }
-
-        const updatedUser = await user.save();
 
         res.json({
-            _id: updatedUser._id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            isAdmin: updatedUser.isAdmin,
-            token: generateToken(updatedUser._id),
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            isAdmin: user.isAdmin,
         });
     } catch (error) {
-        console.error('Update profile error:', error.message);
+        console.error('Sync error:', error.message);
         res.status(500).json({ message: error.message });
     }
 };
 
-module.exports = { authUser, registerUser, updateUserProfile };
+module.exports = { syncUser };
